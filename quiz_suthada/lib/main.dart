@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; // Import the chart library
+import 'package:fl_chart/fl_chart.dart';
 import 'package:quiz_suthada/screen/signin_screen.dart';
 
 void main() async {
@@ -142,11 +142,9 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
                   }
                 }
 
-                // Prepare data for the last 2 months
                 List<Map<String, dynamic>> lastTwoMonthsData =
                     _prepareLastTwoMonthsData(snapshot.data!);
 
-                // Always display combined chart
                 Widget chartWidget = _buildBarChart(lastTwoMonthsData);
 
                 return Column(
@@ -160,7 +158,7 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
                       ),
                     ),
                     SizedBox(
-                      height: 200, // Fixed height for chart
+                      height: 200,
                       child: chartWidget,
                     ),
                     Expanded(
@@ -178,7 +176,7 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
                             ),
                             subtitle: Text(
                               'วันที่: ${doc['date'].toDate().toString().split(' ')[0]}\n'
-                              'หมายเหตุ: ${doc['note']}', // Displaying the note
+                              'หมายเหตุ: ${doc['note']}',
                             ),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete),
@@ -198,7 +196,6 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
     );
   }
 
-  // Function to prepare data for the last two months
   List<Map<String, dynamic>> _prepareLastTwoMonthsData(QuerySnapshot snapshot) {
     DateTime now = DateTime.now();
     DateTime lastMonth = DateTime(now.year, now.month - 1, 1);
@@ -243,66 +240,92 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
     ];
   }
 
-// Function to build combined bar chart for last two months
   Widget _buildBarChart(List<Map<String, dynamic>> data) {
-    return BarChart(
-      BarChartData(
-        barGroups: [
-          BarChartGroupData(
-            x: 1, // Last Month
-            barRods: [
-              BarChartRodData(
-                toY: data[0]['income'],
-                color: Colors.green,
-                width: 15,
-                borderRadius: BorderRadius.circular(0),
-              ),
-              BarChartRodData(
-                toY: data[0]['expense'],
-                color: Colors.red,
-                width: 15,
-                borderRadius: BorderRadius.circular(0),
-              ),
-            ],
-          ),
-          BarChartGroupData(
-            x: 2, // Two Months Ago
-            barRods: [
-              BarChartRodData(
-                toY: data[1]['income'],
-                color: Colors.green,
-                width: 15,
-                borderRadius: BorderRadius.circular(0),
-              ),
-              BarChartRodData(
-                toY: data[1]['expense'],
-                color: Colors.red,
-                width: 15,
-                borderRadius: BorderRadius.circular(0),
-              ),
-            ],
-          ),
-        ],
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                // Convert the stored month number to a display format
-                if (value.toInt() == 1) {
-                  return Text('${data[0]['month']}/2023',
-                      style: const TextStyle(
-                          fontSize: 14)); // Replace with the correct year
-                } else if (value.toInt() == 2) {
-                  return Text('${data[1]['month']}/2023',
-                      style: const TextStyle(
-                          fontSize: 14)); // Replace with the correct year
-                } else {
-                  return const Text('');
-                }
-              },
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
             ),
+          ],
+        ),
+        child: BarChart(
+          BarChartData(
+            barGroups: [
+              BarChartGroupData(
+                x: 1, // Last Month
+                barRods: [
+                  BarChartRodData(
+                    toY: data[0]['income'],
+                    color: Colors.green[500], // Change to a cohesive color
+                    width: 25, // Thicker bars
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  BarChartRodData(
+                    toY: data[0]['expense'],
+                    color: Colors.red[500], // Change to a cohesive color
+                    width: 25, // Thicker bars
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+              BarChartGroupData(
+                x: 2, // Two Months Ago
+                barRods: [
+                  BarChartRodData(
+                    toY: data[1]['income'],
+                    color: Colors.green[500],
+                    width: 25,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  BarChartRodData(
+                    toY: data[1]['expense'],
+                    color: Colors.red[500],
+                    width: 25,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+            ],
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false), // Hide left titles
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    if (value.toInt() == 1) {
+                      return Text('${data[0]['month']}/2023',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold));
+                    } else if (value.toInt() == 2) {
+                      return Text('${data[1]['month']}/2023',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold));
+                    } else {
+                      return const Text('');
+                    }
+                  },
+                ),
+              ),
+            ),
+            gridData: FlGridData(show: false), // Hide grid lines
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(color: Colors.grey.withOpacity(0.5), width: 1),
+            ),
+            alignment: BarChartAlignment.spaceAround,
+            maxY: data[0]['income'] > data[1]['income']
+                ? data[0]['income'] * 1.2
+                : data[1]['income'] * 1.2,
           ),
         ),
       ),
