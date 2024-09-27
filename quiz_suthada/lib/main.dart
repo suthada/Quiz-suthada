@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:quiz_suthada/screen/signin_screen.dart';
 
@@ -17,231 +18,182 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => const SigninScreen(),
-        '/todo': (context) => const TodoApp(),
+        '/home': (context) => const IncomeExpenseApp(),
       },
     );
   }
 }
 
-class TodoApp extends StatefulWidget {
-  const TodoApp({
-    super.key,
-  });
+class IncomeExpenseApp extends StatefulWidget {
+  const IncomeExpenseApp({super.key});
 
   @override
-  State<TodoApp> createState() => _TodoAppState();
+  State<IncomeExpenseApp> createState() => _IncomeExpenseAppState();
 }
 
-class _TodoAppState extends State<TodoApp> {
-  late TextEditingController _nameController;
-  late TextEditingController _detailController;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController();
-    _detailController = TextEditingController();
-  }
-
-  void _showAddEditDialog(BuildContext context, {DocumentSnapshot? task}) {
-    bool isEditing = task != null;
-    _nameController.text = isEditing ? task['name'] : '';
-    _detailController.text = isEditing ? task['detail'] : '';
-    bool status = isEditing ? task['status'] : false;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(isEditing ? "Edit task" : "Add new task"),
-              content: SizedBox(
-                width: 300,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: "Task name",
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _detailController,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        labelText: "Task detail",
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text("Task status:"),
-                        ChoiceChip(
-                          label: Text(status ? "Completed" : "Pending"),
-                          selected: status,
-                          onSelected: (selected) {
-                            setState(() {
-                              status = selected;
-                            });
-                          },
-                          selectedColor: Colors.green,
-                          avatar: Icon(
-                            status ? Icons.check_circle : Icons.pending,
-                            color: status ? Colors.white : Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    final data = {
-                      'name': _nameController.text,
-                      'detail': _detailController.text,
-                      'status': status,
-                    };
-
-                    if (isEditing) {
-                      FirebaseFirestore.instance
-                          .collection("tasks")
-                          .doc(task.id)
-                          .update(data);
-                    } else {
-                      FirebaseFirestore.instance.collection("tasks").add(data);
-                    }
-
-                    _nameController.clear();
-                    _detailController.clear();
-                    Navigator.pop(context);
-                  },
-                  child: Text(isEditing ? "Update" : "Save"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _deleteTask(String taskId) {
-    FirebaseFirestore.instance.collection("tasks").doc(taskId).delete();
-  }
+class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+  String _selectedType = 'Income';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Todo"),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Income & Expense Tracker'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              // Navigate to SigninScreen
-              Navigator.of(context).pushReplacementNamed('/');
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              Navigator.pushReplacementNamed(context, '/');
             },
           ),
         ],
       ),
-      body: StreamBuilder(
-        stream: FirebaseFirestore.instance.collection("tasks").snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No tasks"));
-          }
-
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              var task = snapshot.data!.docs[index];
-              bool isCompleted = task['status'];
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Column(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _amountController,
+                  decoration: const InputDecoration(labelText: 'Amount'),
+                  keyboardType: TextInputType.number,
+                ),
+                Row(
                   children: [
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            isCompleted ? Colors.green : Colors.orange,
-                        child: Icon(
-                          isCompleted ? Icons.check : Icons.pending,
-                          color: Colors.white,
-                        ),
-                      ),
-                      title: Text(
-                        task['name'],
-                        style: TextStyle(
-                          decoration:
-                              isCompleted ? TextDecoration.lineThrough : null,
-                        ),
-                      ),
-                      subtitle: Text(task['detail']),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () =>
-                                _showAddEditDialog(context, task: task),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteTask(task.id),
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        FirebaseFirestore.instance
-                            .collection("tasks")
-                            .doc(task.id)
-                            .update({'status': !isCompleted});
+                    const Text('Date: '),
+                    TextButton(
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedDate = picked;
+                          });
+                        }
                       },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        "Click to ${isCompleted ? 'mark as pending' : 'complete'}",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
+                      child: Text(_selectedDate.toString().split(' ')[0]),
                     ),
                   ],
                 ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddEditDialog(context),
-        child: const Icon(Icons.add),
+                DropdownButton<String>(
+                  value: _selectedType,
+                  items: ['Income', 'Expense'].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedType = newValue!;
+                    });
+                  },
+                ),
+                TextField(
+                  controller: _noteController,
+                  decoration: const InputDecoration(labelText: 'Note'),
+                ),
+                ElevatedButton(
+                  onPressed: _addEntry,
+                  child: const Text('Add Entry'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection(FirebaseAuth.instance.currentUser!.email!)
+                  .orderBy('date', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No entries yet'));
+                }
+                double total = 0;
+                for (var doc in snapshot.data!.docs) {
+                  double amount = (doc['amount'] as num).toDouble();
+                  if (doc['type'] == 'Expense') {
+                    amount = -amount;
+                  }
+                  total += amount;
+                }
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Current Balance: ${total.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: snapshot.data!.docs.map((doc) {
+                          return ListTile(
+                            title: Text('${doc['amount']} - ${doc['type']}'),
+                            subtitle: Text(
+                                '${doc['date'].toDate().toString().split(' ')[0]} - ${doc['note']}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteEntry(doc.id),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  void _addEntry() {
+    if (_amountController.text.isNotEmpty) {
+      FirebaseFirestore.instance
+          .collection(FirebaseAuth.instance.currentUser!.email!)
+          .add({
+        'amount': double.parse(_amountController.text),
+        'date': _selectedDate,
+        'type': _selectedType,
+        'note': _noteController.text,
+      });
+      _amountController.clear();
+      _noteController.clear();
+      setState(() {
+        _selectedDate = DateTime.now();
+        _selectedType = 'Income';
+      });
+    }
+  }
+
+  void _deleteEntry(String docId) {
+    FirebaseFirestore.instance
+        .collection(FirebaseAuth.instance.currentUser!.email!)
+        .doc(docId)
+        .delete();
   }
 }

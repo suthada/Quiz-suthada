@@ -37,7 +37,8 @@ class _SigninScreenState extends State<SigninScreen> {
 
       if (res == 'success') {
         // Navigate to MainApp
-        Navigator.of(context).pushReplacementNamed('/todo');
+        // ignore: use_build_context_synchronously
+        Navigator.of(context).pushReplacementNamed('/home');
       } else {
         setState(() {
           _errorMessage = 'ข้อมูลไม่ถูกต้อง';
