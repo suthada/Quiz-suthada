@@ -131,28 +131,16 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
                   return const Center(child: Text('ยังไม่มีรายการ'));
                 }
 
-                double totalIncome = 0;
-                double totalExpense = 0;
-                for (var doc in snapshot.data!.docs) {
-                  double amount = (doc['amount'] as num).toDouble();
-                  if (doc['type'] == 'รายจ่าย') {
-                    totalExpense += amount;
-                  } else {
-                    totalIncome += amount;
-                  }
-                }
-
-                List<Map<String, dynamic>> lastTwoMonthsData =
-                    _prepareLastTwoMonthsData(snapshot.data!);
-
-                Widget chartWidget = _buildBarChart(lastTwoMonthsData);
+                List<Map<String, dynamic>> monthlyData =
+                    _prepareMonthlyData(snapshot.data!);
+                Widget chartWidget = _buildBarChart(monthlyData);
 
                 return Column(
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
-                        'ยอดคงเหลือ: ${(totalIncome - totalExpense).toStringAsFixed(2)}',
+                        'ยอดคงเหลือ: ${_calculateBalance(snapshot.data!)} บาท',
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
@@ -196,48 +184,48 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
     );
   }
 
-  List<Map<String, dynamic>> _prepareLastTwoMonthsData(QuerySnapshot snapshot) {
-    DateTime now = DateTime.now();
-    DateTime lastMonth = DateTime(now.year, now.month - 1, 1);
-    DateTime twoMonthsAgo = DateTime(now.year, now.month - 2, 1);
+  double _calculateBalance(QuerySnapshot snapshot) {
+    double totalIncome = 0;
+    double totalExpense = 0;
 
-    double lastMonthIncome = 0;
-    double lastMonthExpense = 0;
-    double twoMonthsAgoIncome = 0;
-    double twoMonthsAgoExpense = 0;
+    for (var doc in snapshot.docs) {
+      double amount = (doc['amount'] as num).toDouble();
+      if (doc['type'] == 'รายจ่าย') {
+        totalExpense += amount;
+      } else {
+        totalIncome += amount;
+      }
+    }
+    return totalIncome - totalExpense;
+  }
+
+  List<Map<String, dynamic>> _prepareMonthlyData(QuerySnapshot snapshot) {
+    Map<String, double> monthlyIncome = {};
+    Map<String, double> monthlyExpense = {};
 
     for (var doc in snapshot.docs) {
       DateTime entryDate = doc['date'].toDate();
-      double amount = (doc['amount'] as num).toDouble();
+      String monthYear =
+          "${entryDate.year}-${entryDate.month.toString().padLeft(2, '0')}";
 
-      if (entryDate.isAfter(lastMonth) && entryDate.isBefore(now)) {
-        if (doc['type'] == 'รายรับ') {
-          lastMonthIncome += amount;
-        } else {
-          lastMonthExpense += amount;
-        }
-      } else if (entryDate.isAfter(twoMonthsAgo) &&
-          entryDate.isBefore(lastMonth)) {
-        if (doc['type'] == 'รายรับ') {
-          twoMonthsAgoIncome += amount;
-        } else {
-          twoMonthsAgoExpense += amount;
-        }
+      double amount = (doc['amount'] as num).toDouble();
+      if (doc['type'] == 'รายรับ') {
+        monthlyIncome[monthYear] = (monthlyIncome[monthYear] ?? 0) + amount;
+      } else {
+        monthlyExpense[monthYear] = (monthlyExpense[monthYear] ?? 0) + amount;
       }
     }
 
-    return [
-      {
-        'month': lastMonth.month.toDouble(), // Store the month as double
-        'income': lastMonthIncome,
-        'expense': lastMonthExpense
-      },
-      {
-        'month': twoMonthsAgo.month.toDouble(), // Store the month as double
-        'income': twoMonthsAgoIncome,
-        'expense': twoMonthsAgoExpense
-      },
-    ];
+    List<Map<String, dynamic>> chartData = [];
+    monthlyIncome.forEach((key, income) {
+      chartData.add({
+        'month': key,
+        'income': income,
+        'expense': monthlyExpense[key] ?? 0,
+      });
+    });
+
+    return chartData;
   }
 
   Widget _buildBarChart(List<Map<String, dynamic>> data) {
@@ -258,58 +246,43 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
         ),
         child: BarChart(
           BarChartData(
-            barGroups: [
-              BarChartGroupData(
-                x: 1, // Last Month
+            barGroups: data.asMap().entries.map((entry) {
+              int index = entry.key;
+              Map<String, dynamic> monthData = entry.value;
+
+              return BarChartGroupData(
+                x: index,
                 barRods: [
                   BarChartRodData(
-                    toY: data[0]['income'],
-                    color: Colors.green[500], // Change to a cohesive color
-                    width: 25, // Thicker bars
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  BarChartRodData(
-                    toY: data[0]['expense'],
-                    color: Colors.red[500], // Change to a cohesive color
-                    width: 25, // Thicker bars
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ],
-              ),
-              BarChartGroupData(
-                x: 2, // Two Months Ago
-                barRods: [
-                  BarChartRodData(
-                    toY: data[1]['income'],
+                    toY: monthData['income'],
                     color: Colors.green[500],
                     width: 25,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   BarChartRodData(
-                    toY: data[1]['expense'],
+                    toY: monthData['expense'],
                     color: Colors.red[500],
                     width: 25,
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ],
-              ),
-            ],
+              );
+            }).toList(),
             titlesData: FlTitlesData(
               leftTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: false), // Hide left titles
+                sideTitles: SideTitles(showTitles: false),
               ),
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
                   getTitlesWidget: (value, meta) {
-                    if (value.toInt() == 1) {
-                      return Text('${data[0]['month']}/2023',
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.bold));
-                    } else if (value.toInt() == 2) {
-                      return Text('${data[1]['month']}/2023',
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.bold));
+                    if (value.toInt() < data.length) {
+                      return Text(
+                        data[value.toInt()]
+                            ['month'], // Display month-year as title
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold),
+                      );
                     } else {
                       return const Text('');
                     }
@@ -317,22 +290,20 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
                 ),
               ),
             ),
-            gridData: FlGridData(show: false), // Hide grid lines
+            gridData: FlGridData(show: false),
             borderData: FlBorderData(
               show: true,
               border: Border.all(color: Colors.grey.withOpacity(0.5), width: 1),
             ),
             alignment: BarChartAlignment.spaceAround,
-            maxY: data[0]['income'] > data[1]['income']
-                ? data[0]['income'] * 1.2
-                : data[1]['income'] * 1.2,
+            maxY: data.map((e) => e['income']).reduce((a, b) => a > b ? a : b) *
+                1.2,
           ),
         ),
       ),
     );
   }
 
-  // Function to add new entry
   void _addEntry() {
     final amount = double.tryParse(_amountController.text);
     if (amount == null) {
@@ -343,20 +314,15 @@ class _IncomeExpenseAppState extends State<IncomeExpenseApp> {
         .collection(FirebaseAuth.instance.currentUser!.email!)
         .add({
       'amount': amount,
-      'type': _selectedType,
       'date': _selectedDate,
+      'type': _selectedType,
       'note': _noteController.text,
     });
 
     _amountController.clear();
     _noteController.clear();
-    setState(() {
-      _selectedDate = DateTime.now();
-      _selectedType = 'รายรับ';
-    });
   }
 
-  // Function to delete entry
   void _deleteEntry(String id) {
     FirebaseFirestore.instance
         .collection(FirebaseAuth.instance.currentUser!.email!)
